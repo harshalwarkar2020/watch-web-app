@@ -1,0 +1,100 @@
+# Requirements — Book the Watch: User Registration & Login
+
+**Story ID:** STORY-1 (Book the Watch — Registration & Login)
+**Source:** `requirement.docx`
+
+## Overview / Context
+
+"Book the Watch" is a full-stack web application providing user registration
+and login with JWT-based session management. Users create an account with a
+username and password, then authenticate to receive a JWT used for
+subsequent session/authorization. During development, the backend API runs
+at `http://localhost:3000` and the React frontend dev server runs at
+`http://localhost:5173` (see `architecture.md` for the CORS configuration
+between them).
+
+## Actors & User Roles
+
+- **Unregistered Visitor** — can access the Registration form to create an account.
+- **Registered User** — can access the Login form to authenticate and receive a JWT.
+
+There is only one role in this exercise; no admin/differentiated roles are in scope.
+
+## Functional Requirements
+
+1. **FR-1 (Registration):** The system shall allow a visitor to register with a unique username and a password.
+2. **FR-2 (Uniqueness check):** The system shall reject registration if the requested username already exists, returning a clear error message.
+3. **FR-3 (Password hashing):** The system shall hash passwords using a secure algorithm before storing them; plaintext passwords shall never be persisted or logged.
+4. **FR-4 (Registration response):** On success, the system shall return a success message confirming registration. On failure, it shall return an error message describing the issue (e.g., duplicate username, missing/invalid fields).
+5. **FR-5 (Login):** The system shall allow a registered user to log in using their username and password.
+6. **FR-6 (Authentication check):** The system shall verify the submitted password against the stored hash and reject login with an error message on mismatch, without revealing whether the username or password was incorrect.
+7. **FR-7 (JWT issuance):** On successful login, the system shall issue a JWT containing sufficient claims to identify the user, with a 1-hour expiration.
+8. **FR-8 (Login response):** On success, the system shall return the JWT and a success message. On failure, it shall return an error message.
+9. **FR-9 (Input validation):** The system shall validate that username and password fields are present and non-empty on both registration and login, rejecting requests with missing/empty fields with a clear error message.
+
+## Non-Functional Requirements
+
+- **NFR-1 (Password hashing):** Passwords must be hashed with a strong, salted, industry-standard algorithm (e.g., bcrypt) — never reversible encryption, never plaintext.
+- **NFR-2 (Password complexity):** Minimum password length of 8 characters. No additional character-class rules required for this exercise.
+- **NFR-3 (JWT expiration):** Issued JWTs expire after 1 hour. No refresh-token mechanism is implemented in this exercise (see Out of Scope).
+- **NFR-4 (JWT secret handling):** The JWT signing secret must be read from an environment variable, never hardcoded in source or committed to version control.
+- **NFR-5 (Input validation):** All inputs must be validated server-side regardless of client-side validation.
+- **NFR-6 (Error handling):** All error responses must use appropriate HTTP status codes (e.g., 400 for bad input, 401 for auth failure, 409 for duplicate username) and must never leak internal implementation details (stack traces, DB errors) to the client.
+- **NFR-7 (Performance):** Registration and login requests should respond within a low-latency budget suitable for local/dev use (informal target: < 500ms under no load); no formal load/scale target is defined for this exercise.
+- **NFR-8 (Storage):** User data is persisted in SQLite for this exercise (zero-setup, file-based, adequate for a local demo).
+- **NFR-9 (Compliance):** No specific regulatory compliance (e.g., GDPR, SOC2) is targeted; out of scope for this exercise.
+
+## Acceptance Criteria
+
+**AC-1 — Successful registration**
+- Given a visitor submits a username that does not already exist and a password of at least 8 characters
+- When they submit the registration form
+- Then the system creates the account with a securely hashed password and returns a success message
+
+**AC-2 — Duplicate username on registration**
+- Given a username that is already registered
+- When a visitor attempts to register with that username
+- Then the system rejects the request with a 409 error and a message indicating the username is taken
+
+**AC-3 — Missing/empty fields on registration**
+- Given a registration request with an empty or missing username or password
+- When the request is submitted
+- Then the system rejects it with a 400 error and a validation message
+
+**AC-4 — Successful login**
+- Given a registered user with a known username and correct password
+- When they submit the login form
+- Then the system returns a JWT (1-hour expiration) and a success message
+
+**AC-5 — Wrong password on login**
+- Given a registered username and an incorrect password
+- When the login is submitted
+- Then the system rejects it with a 401 error and a generic "invalid credentials" message
+
+**AC-6 — Unknown username on login**
+- Given a username that is not registered
+- When a login is attempted
+- Then the system rejects it with a 401 error and the same generic "invalid credentials" message as AC-5 (no user enumeration)
+
+**AC-7 — Missing/empty fields on login**
+- Given a login request with an empty or missing username or password
+- When the request is submitted
+- Then the system rejects it with a 400 error and a validation message
+
+## Assumptions
+
+- Hashing library: bcrypt (industry standard for Node.js), to be confirmed in Architecture.
+- JWT library: `jsonwebtoken` (industry standard for Node.js), to be confirmed in Architecture.
+- Deployment target: this exercise targets `http://localhost:3000` for development only; no production hosting provider is selected or required.
+- No rate limiting, account lockout, or CAPTCHA is required for this exercise.
+- No email verification step is required at registration.
+
+## Out of Scope
+
+- Refresh tokens / token renewal flow.
+- Password reset / "forgot password" flow.
+- Multi-factor authentication.
+- Role-based access control / admin roles.
+- Production deployment/hosting configuration.
+- Rate limiting, account lockout, and abuse prevention.
+- Regulatory compliance certification.
