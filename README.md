@@ -36,7 +36,8 @@ Failures return HTTP 400 with `{ "error": "<message>" }`. The frontend mirrors t
 
 | Field | Endpoint | Rule |
 |-------|----------|------|
-| username | register, login | required, at most 30 characters |
+| username | register | required, at most 30 characters |
+| username | login | required, at most 255 characters (looser than register so older accounts can still sign in) |
 | password | register | at least 8 characters and at most 72 UTF-8 bytes (bcrypt only uses the first 72 bytes) |
 | password | login | at most 512 UTF-8 bytes (rejected before `bcrypt.compare` to avoid hashing huge inputs) |
 

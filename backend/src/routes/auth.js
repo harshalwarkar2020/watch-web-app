@@ -42,7 +42,11 @@ router.post(
   }
 );
 
-router.post('/login', validateCredentials({ maxPasswordBytes: 512, maxUsernameLength: 30 }), async (req, res, next) => {
+// Login caps are looser than register's (username 30) so accounts created before
+// the register limits existed can still sign in; they only bound abusive input.
+const loginValidation = validateCredentials({ maxPasswordBytes: 512, maxUsernameLength: 255 });
+
+router.post('/login', loginValidation, async (req, res, next) => {
   const { username, password } = req.body;
   const db = req.app.locals.db;
 

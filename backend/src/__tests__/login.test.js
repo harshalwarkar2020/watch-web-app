@@ -14,6 +14,10 @@ afterAll(() => {
   process.env.JWT_SECRET = ORIGINAL_SECRET;
 });
 
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
 async function buildTestAppWithUser() {
   const db = createDb(':memory:');
   const app = createApp(db);
@@ -73,7 +77,6 @@ describe('POST /api/login', () => {
   it('rejects a password over 512 UTF-8 bytes with 400 before calling bcrypt.compare', async () => {
     const { app } = await buildTestAppWithUser();
     const compareSpy = jest.spyOn(bcrypt, 'compare');
-    compareSpy.mockClear();
 
     const res = await request(app)
       .post('/api/login')
@@ -82,27 +85,38 @@ describe('POST /api/login', () => {
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'password must be at most 512 bytes' });
     expect(compareSpy).not.toHaveBeenCalled();
-    compareSpy.mockRestore();
   });
 
-  it('still processes a password of exactly 512 bytes (401 for wrong credentials)', async () => {
+  it('still processes a password of exactly 512 bytes (bcrypt.compare runs, 401 for wrong credentials)', async () => {
     const { app } = await buildTestAppWithUser();
+    const compareSpy = jest.spyOn(bcrypt, 'compare');
 
     const res = await request(app)
       .post('/api/login')
       .send({ username: 'alice', password: 'a'.repeat(512) });
 
     expect(res.status).toBe(401);
+    expect(compareSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects a username over 30 characters with 400', async () => {
+  it('does not apply the 30-character register cap to login, so existing longer usernames are not locked out', async () => {
     const { app } = await buildTestAppWithUser();
 
     const res = await request(app)
       .post('/api/login')
       .send({ username: 'a'.repeat(31), password: 'password1' });
 
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a username over 255 characters with 400', async () => {
+    const { app } = await buildTestAppWithUser();
+
+    const res = await request(app)
+      .post('/api/login')
+      .send({ username: 'a'.repeat(256), password: 'password1' });
+
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'username must be at most 30 characters' });
+    expect(res.body).toEqual({ error: 'username must be at most 255 characters' });
   });
 });
