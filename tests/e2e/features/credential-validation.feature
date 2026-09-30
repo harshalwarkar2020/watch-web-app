@@ -178,9 +178,7 @@ Feature: Credential validation on register and login
       |            | <valid>   | username empty             |
       | <spaces>   | <valid>   | username whitespace only   |
 
-  # KNOWN DEFECT: authClient discards the body of non-2xx responses, so the UI shows no message.
-  # Automated with test.fail(): green while the defect exists, red once fixed (then remove the annotation).
-  @ui @negative @known-defect @CV-16
+  @ui @negative @CV-16
   Scenario Outline: Server-side rejections are displayed to the visitor in the alert
     Given the visitor is on the "<form>"
     When they submit <input>

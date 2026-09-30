@@ -35,7 +35,7 @@ async function expectBlockedOnClient(page: Page, form: AuthForm, message: string
 
 /**
  * Assert the request reached the backend and it answered with the given status and exact { error } body.
- * We assert on the network response (not the alert) because of the known authClient defect covered by [CV-16].
+ * Asserts on the network response; the alert text for server rejections is covered by [CV-16].
  */
 async function expectServerReply(response: Response, status: number, message: string) {
   expect(response.status()).toBe(status);
@@ -267,14 +267,7 @@ test.describe('Credential validation - login form (UI)', () => {
 });
 
 test.describe('Credential validation - server errors surfaced in the UI (UI)', () => {
-  // KNOWN DEFECT (application, not test): frontend/src/api/authClient.js#fetchJsonWithTimeout returns any
-  // non-2xx fetch Response as if it were an already-normalised error ('ok' in response && !response.ok),
-  // so parseResponse() never runs, result.error is undefined and the form renders no message at all.
-  // test.fail() keeps CI green while the defect exists and turns RED as soon as it is fixed, which is the
-  // signal to delete the annotation (the assertions below are the intended, correct behavior).
-  test.describe('[CV-16] server-side rejections are shown in the alert @negative @known-defect', () => {
-    test.fail(true, 'authClient drops error bodies of non-2xx responses; alert is never rendered');
-
+  test.describe('[CV-16] server-side rejections are shown in the alert @negative', () => {
     test('login: wrong password shows "invalid credentials"', async ({ page, request }) => {
       const { username } = await seedUser(request);
       const form = await openLoginForm(page);
