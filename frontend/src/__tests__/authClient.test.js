@@ -1,15 +1,18 @@
 import { register, login, me } from '../api/authClient'
 
+// Real Response objects, so behavior matches the browser (a non-2xx Response has ok === false).
 function mockFetchOnce({ status, body }) {
-  global.fetch = vi.fn().mockResolvedValue({
-    ok: status >= 200 && status < 300,
-    status,
-    json: async () => body,
-  })
+  global.fetch = vi.fn().mockResolvedValue(
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  )
 }
 
 describe('authClient', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
@@ -22,7 +25,17 @@ describe('authClient', () => {
   it('register() returns ok:false with the server error on failure', async () => {
     mockFetchOnce({ status: 409, body: { error: 'username already exists' } })
     const result = await register('alice', 'password1')
-    expect(result).toEqual({ ok: false, error: 'username already exists' })
+    expect(result).toEqual({ ok: false, error: 'username already exists', status: 409 })
+  })
+
+  it('register() surfaces a 400 validation message from the server', async () => {
+    mockFetchOnce({ status: 400, body: { error: 'password must be at most 72 bytes' } })
+    const result = await register('alice', 'x')
+    expect(result).toEqual({
+      ok: false,
+      error: 'password must be at most 72 bytes',
+      status: 400,
+    })
   })
 
   it('login() returns ok:true with the token on success', async () => {
@@ -37,7 +50,7 @@ describe('authClient', () => {
   it('login() returns ok:false with the server error on failure', async () => {
     mockFetchOnce({ status: 401, body: { error: 'invalid credentials' } })
     const result = await login('alice', 'wrong')
-    expect(result).toEqual({ ok: false, error: 'invalid credentials' })
+    expect(result).toEqual({ ok: false, error: 'invalid credentials', status: 401 })
   })
 
   it('me() sends the bearer token and returns ok:true on success', async () => {
@@ -53,6 +66,41 @@ describe('authClient', () => {
   it('me() returns ok:false on an invalid token', async () => {
     mockFetchOnce({ status: 401, body: { error: 'missing or invalid token' } })
     const result = await me('bad-token')
-    expect(result).toEqual({ ok: false, error: 'missing or invalid token' })
+    expect(result).toEqual({ ok: false, error: 'missing or invalid token', status: 401 })
+  })
+
+  it('falls back to the response text when an error body is not JSON', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('Bad Gateway', { status: 502, statusText: 'Bad Gateway' }))
+    const result = await login('alice', 'password1')
+    expect(result).toEqual({ ok: false, error: 'Bad Gateway', status: 502 })
+  })
+
+  it('returns "request failed" when fetch rejects (network error)', async () => {
+    global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    const result = await login('alice', 'password1')
+    expect(result).toEqual({ ok: false, error: 'request failed' })
+  })
+
+  it('returns a TIMEOUT error when the request exceeds the timeout', async () => {
+    vi.useFakeTimers()
+    global.fetch = vi.fn(
+      (_url, { signal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError'))
+          )
+        })
+    )
+
+    const pending = login('alice', 'password1')
+    await vi.advanceTimersByTimeAsync(9000)
+
+    await expect(pending).resolves.toEqual({
+      ok: false,
+      error: 'request timed out',
+      code: 'TIMEOUT',
+    })
   })
 })

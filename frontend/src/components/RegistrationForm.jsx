@@ -14,7 +14,7 @@ export function RegistrationForm({ onSwitchView = () => {} }) {
     isError,
     isSubmitting,
     handleSubmit,
-  } = useCredentialsForm(register)
+  } = useCredentialsForm(register, { maxPasswordBytes: 72 })
 
   return (
     <AuthCard>
