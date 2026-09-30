@@ -15,7 +15,7 @@ const router = express.Router();
 
 router.post(
   '/register',
-  validateCredentials({ minPasswordLength: 8 }),
+  validateCredentials({ minPasswordLength: 8, maxPasswordBytes: 72, maxUsernameLength: 30 }),
   async (req, res, next) => {
     const { username, password } = req.body;
     const db = req.app.locals.db;
@@ -42,7 +42,7 @@ router.post(
   }
 );
 
-router.post('/login', validateCredentials(), async (req, res, next) => {
+router.post('/login', validateCredentials({ maxPasswordBytes: 512, maxUsernameLength: 30 }), async (req, res, next) => {
   const { username, password } = req.body;
   const db = req.app.locals.db;
 

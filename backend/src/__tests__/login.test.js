@@ -1,5 +1,6 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const { createApp } = require('../app');
 const { createDb } = require('../db');
 
@@ -67,5 +68,41 @@ describe('POST /api/login', () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'username and password are required' });
+  });
+
+  it('rejects a password over 512 UTF-8 bytes with 400 before calling bcrypt.compare', async () => {
+    const { app } = await buildTestAppWithUser();
+    const compareSpy = jest.spyOn(bcrypt, 'compare');
+    compareSpy.mockClear();
+
+    const res = await request(app)
+      .post('/api/login')
+      .send({ username: 'alice', password: 'a'.repeat(513) });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'password must be at most 512 bytes' });
+    expect(compareSpy).not.toHaveBeenCalled();
+    compareSpy.mockRestore();
+  });
+
+  it('still processes a password of exactly 512 bytes (401 for wrong credentials)', async () => {
+    const { app } = await buildTestAppWithUser();
+
+    const res = await request(app)
+      .post('/api/login')
+      .send({ username: 'alice', password: 'a'.repeat(512) });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a username over 30 characters with 400', async () => {
+    const { app } = await buildTestAppWithUser();
+
+    const res = await request(app)
+      .post('/api/login')
+      .send({ username: 'a'.repeat(31), password: 'password1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'username must be at most 30 characters' });
   });
 });

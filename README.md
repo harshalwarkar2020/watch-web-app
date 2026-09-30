@@ -31,6 +31,17 @@ Current coverage: 97.64% backend, 97.61% frontend (47 tests passing)
 | POST | /api/login | Log in, returns a JWT |
 | GET | /api/me | Return the authenticated username (requires `Authorization: Bearer <jwt>`) |
 
+### Credential validation
+Failures return HTTP 400 with `{ "error": "<message>" }`. The frontend mirrors these rules.
+
+| Field | Endpoint | Rule |
+|-------|----------|------|
+| username | register, login | required, at most 30 characters |
+| password | register | at least 8 characters and at most 72 UTF-8 bytes (bcrypt only uses the first 72 bytes) |
+| password | login | at most 512 UTF-8 bytes (rejected before `bcrypt.compare` to avoid hashing huge inputs) |
+
+Password limits are measured in UTF-8 bytes, so multi-byte characters (e.g. `é` = 2 bytes) count more than once.
+
 ## Known Limitations
 - No persistent session across page refresh — JWT is held in-memory only (React Context), a deliberate XSS-hardening tradeoff
 - SQLite is a single point of failure / single-writer — fine for this scale, not for concurrent production load

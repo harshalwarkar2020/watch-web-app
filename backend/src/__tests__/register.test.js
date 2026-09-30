@@ -58,4 +58,36 @@ describe('POST /api/register', () => {
     expect(res.status).toBe(400);
     expect(res.body).toEqual({ error: 'password must be at least 8 characters' });
   });
+
+  it('rejects a password over 72 UTF-8 bytes with 400', async () => {
+    const { app } = buildTestApp();
+
+    const res = await request(app)
+      .post('/api/register')
+      .send({ username: 'alice', password: 'é'.repeat(37) });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'password must be at most 72 bytes' });
+  });
+
+  it('accepts a password of exactly 72 UTF-8 bytes', async () => {
+    const { app } = buildTestApp();
+
+    const res = await request(app)
+      .post('/api/register')
+      .send({ username: 'alice', password: 'é'.repeat(36) });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects a username over 30 characters with 400', async () => {
+    const { app } = buildTestApp();
+
+    const res = await request(app)
+      .post('/api/register')
+      .send({ username: 'a'.repeat(31), password: 'password1' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'username must be at most 30 characters' });
+  });
 });
