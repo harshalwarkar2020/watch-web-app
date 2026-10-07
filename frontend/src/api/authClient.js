@@ -7,6 +7,17 @@ const DEFAULT_TIMEOUT_MS = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 9000
 })()
 
+function extractError(data, rawText, res) {
+  const err = data.error
+  if (typeof err === 'string') return { error: err }
+  if (err && typeof err.message === 'string') {
+    return typeof err.code === 'string'
+      ? { error: err.message, code: err.code }
+      : { error: err.message }
+  }
+  return { error: rawText || res.statusText || 'request failed' }
+}
+
 async function parseResponse(res) {
   // Try JSON first, fallback to text for diagnostics when the body isn't JSON.
   const contentType = res.headers?.get?.('content-type') || ''
@@ -20,10 +31,9 @@ async function parseResponse(res) {
   }
 
   if (!res.ok) {
-    const error = data.error || rawText || res.statusText || 'request failed'
     return {
       ok: false,
-      error,
+      ...extractError(data, rawText, res),
       status: res.status,
     }
   }
@@ -78,6 +88,9 @@ async function fetchJsonWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEO
 
   if (failure) {
     return failure
+  // If fetchWithTimeout returned a normalized error object, pass it through.
+  if (result && typeof result.json !== 'function' && result.ok === false) {
+    return result
   }
 
   return parseResponse(response)
