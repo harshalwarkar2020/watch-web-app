@@ -56,10 +56,10 @@ function isAbortError(err) {
 /**
  * Fetch wrapper that enforces a hard timeout using AbortController.
  *
- * Returns:
- * - Response on success
- * - { ok:false, error:'request timed out', code:'TIMEOUT' } on timeout
- * - { ok:false, error:'request failed' } on other fetch-level failures
+ * Returns exactly one of:
+ * - { response } when fetch resolved (any HTTP status)
+ * - { failure: { ok:false, error:'request timed out', code:'TIMEOUT' } } on timeout
+ * - { failure: { ok:false, error:'request failed' } } on other fetch-level failures
  */
 async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController()
@@ -71,28 +71,29 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_M
   }, timeoutMs)
 
   try {
-    const res = await fetch(url, { ...options, signal: controller.signal })
-    return res
+    const response = await fetch(url, { ...options, signal: controller.signal })
+    return { response }
   } catch (err) {
     if (isAbortError(err) && didTimeout) {
-      return { ok: false, error: 'request timed out', code: 'TIMEOUT' }
+      return { failure: { ok: false, error: 'request timed out', code: 'TIMEOUT' } }
     }
-    return { ok: false, error: 'request failed' }
+    return { failure: { ok: false, error: 'request failed' } }
   } finally {
     clearTimeout(timeoutId)
   }
 }
 
 async function fetchJsonWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
-  const result = await fetchWithTimeout(url, options, timeoutMs)
+  const { response, failure } = await fetchWithTimeout(url, options, timeoutMs)
 
+  if (failure) {
+    return failure
   // If fetchWithTimeout returned a normalized error object, pass it through.
   if (result && typeof result.json !== 'function' && result.ok === false) {
     return result
   }
 
-  // Otherwise it's a Response.
-  return parseResponse(result)
+  return parseResponse(response)
 }
 
 export async function register(username, password) {

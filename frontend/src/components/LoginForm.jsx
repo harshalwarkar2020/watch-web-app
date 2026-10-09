@@ -16,7 +16,7 @@ export function LoginForm({ onSwitchView = () => {} }) {
     isError,
     isSubmitting,
     handleSubmit,
-  } = useCredentialsForm(login)
+  } = useCredentialsForm(login, { maxUsernameLength: 255, maxPasswordBytes: 512 })
 
   const onSubmit = async (event) => {
     const result = await handleSubmit(event)
